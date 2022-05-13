@@ -14,9 +14,9 @@ import Foundation
 ///
 ///Even we do barrier scenario for achieving thread safe, but AsyncOperation is still not thread safe. We can't block any property associated with state property when we are changing state property (ex: isReady computer property). Please use AsyncOperation carefully with multithread accessing.
 
-class LKAsyncOperation: Operation {
+open class LKAsyncOperation: Operation {
     
-    enum State: String {
+    public enum State: String {
         
         case ready, executing, finished
         
@@ -37,19 +37,26 @@ class LKAsyncOperation: Operation {
         }
     }
     
-    override var isReady: Bool { super.isReady && _state == .ready }
+    public override var isReady: Bool { super.isReady && _state == .ready }
     
-    override var isAsynchronous: Bool { true }
+    public override var isAsynchronous: Bool { true }
     
-    override var isExecuting: Bool { _state == .executing }
+    public override var isExecuting: Bool { _state == .executing }
     
-    override var isFinished: Bool { _state == .finished }
+    public override var isFinished: Bool { _state == .finished }
     
-    private(set) var completeBlock: () -> Void = { }
+    ///completeBlock closure will be called when operation is cancelled before main() method has executed.
+    ///
+    ///If you need do something when operation is cancelled, you can add it in completeBlock through complete(:_) method.
+    ///
+    ///In your implementation of async task, you should call completeBlock when your task is finished or is quit from the process.
+    public private(set) lazy var completeBlock: () -> Void = { [weak self] in
+        guard let self = self else { return }
+        self.setState(.finished)
+    }
     
-    override func start() {
+    public override func start() {
         guard !isCancelled else {
-            setState(.finished)
             completeBlock()
             return
         }
@@ -57,20 +64,28 @@ class LKAsyncOperation: Operation {
         main()
     }
     
-    func state() -> State {
+    open override func main() {
+        //Subclass should override this method to implement async task
+    }
+    
+    public func state() -> State {
         queue.sync {
             _state
         }
     }
     
-    func setState(_ value: State) {
+    public func setState(_ value: State) {
         queue.async(flags: .barrier) { [weak self] in
             self?._state = value
         }
     }
     
-    func complete(_ completeBlock: @escaping () -> Void) -> Self {
-        self.completeBlock = completeBlock
+    public func complete(_ block: @escaping () -> Void) -> Self {
+        self.completeBlock = { [weak self] in
+            guard let self = self else { return }
+            block()
+            self.setState(.finished)
+        }
         return self
     }
 }

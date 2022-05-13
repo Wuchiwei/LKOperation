@@ -8,9 +8,9 @@
 
 import Foundation
 
-class LKAsyncOperationQueue: OperationQueue {
+public class LKAsyncSequenceOperationQueue: OperationQueue {
     
-    typealias AsyncCompletionBlock = (Result<Void, Error>) -> Void
+    public typealias AsyncCompletionBlock = (Result<Void, Error>) -> Void
     
     private let semaphore = DispatchSemaphore(value: 1)
     
@@ -20,7 +20,7 @@ class LKAsyncOperationQueue: OperationQueue {
     
     private var error: Error?
     
-    private func completeBlock(for operation: LKAsyncOperation) -> (() -> Void) {
+    private func completeBlock(for operation: LKAsyncSequenceOperation) -> (() -> Void) {
         
         return { [weak self] in
             operation.setState(.finished)
@@ -28,7 +28,7 @@ class LKAsyncOperationQueue: OperationQueue {
         }
     }
     
-    private func failureBlock(in operation: LKAsyncOperation) -> ((Error) -> Void)  {
+    private func failureBlock(in operation: LKAsyncSequenceOperation) -> ((Error) -> Void)  {
         
         return { [weak self] error in
             
@@ -49,7 +49,7 @@ class LKAsyncOperationQueue: OperationQueue {
         }
     }
     
-    private func addAsyncOperation(_ operation: LKAsyncBlockOperation) {
+    private func addAsyncOperation(_ operation: LKAsyncSequenceOperation) {
         let completionOperation = operation
             .complete(self.completeBlock(for: operation))
             .failure(self.failureBlock(in: operation))
@@ -58,7 +58,7 @@ class LKAsyncOperationQueue: OperationQueue {
     }
     
     @discardableResult
-    func addAsyncOperationsWithExecuteConcurrently(_ operations: [LKAsyncBlockOperation]) -> Self {
+    public func addAsyncOperationsWithExecuteConcurrently(_ operations: [LKAsyncSequenceOperation]) -> Self {
         for operation in operations {
             group.enter()
             addAsyncOperation(operation)
@@ -77,7 +77,7 @@ class LKAsyncOperationQueue: OperationQueue {
     }
     
     @discardableResult
-    func addAsyncOperationsWithExecuteSerially(_ operations: [LKAsyncBlockOperation]) -> Self {
+    public func addAsyncOperationsWithExecuteSerially(_ operations: [LKAsyncSequenceOperation]) -> Self {
         for i in 1..<operations.count {
             let previousOperation = operations[i-1]
             let nextOperation = operations[i]
@@ -88,7 +88,7 @@ class LKAsyncOperationQueue: OperationQueue {
     }
     
     @discardableResult
-    func completion(_ block: @escaping AsyncCompletionBlock) -> Self {
+    public func completion(_ block: @escaping AsyncCompletionBlock) -> Self {
         self.completionBlock = block
         return self
     }
