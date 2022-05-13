@@ -13,7 +13,6 @@ LKOperation is a concurrent task solution written in Swift.
 - [Build asynchronous operation](#AsyncOperation)
 - [Monitor operations collection](#Monitor-Operations-Colletion)
 - [Arrange the sequence of operations](#Arrange-Sequence)
-### AsyncOperation
 
 ## Note 
 - [Memory Leak](#Memory-Leak)
