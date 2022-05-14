@@ -21,6 +21,7 @@ public class LKAsyncBlockOperation: LKAsyncOperation {
     
     public init(_ block: @escaping (LKAsyncBlockOperation) -> Void = { _ in }) {
         self.block = block
+        super.init(test: {})
     }
     
     public override func main() {

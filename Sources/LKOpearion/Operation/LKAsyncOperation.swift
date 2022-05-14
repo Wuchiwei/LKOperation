@@ -23,7 +23,10 @@ open class LKAsyncOperation: Operation {
         fileprivate var keyPath: String { "is\(rawValue.capitalized)" }
     }
     
-    private let queue = DispatchQueue(label: UUID().uuidString, attributes: .concurrent)
+    private let queue = DispatchQueue(
+        label: UUID().uuidString,
+        attributes: .concurrent
+    )
     
     private var _state: State = .ready {
         willSet {
@@ -55,6 +58,17 @@ open class LKAsyncOperation: Operation {
         self.setState(.finished)
     }
     
+    private var testBlock: () -> Void = {}
+    
+    public convenience override init() {
+        self.init(test: {})
+    }
+    
+    init(test testBlock: @escaping () -> Void) {
+        self.testBlock = testBlock
+        super.init()
+    }
+    
     public override func start() {
         guard !isCancelled else {
             completeBlock()
@@ -64,8 +78,10 @@ open class LKAsyncOperation: Operation {
         main()
     }
     
+    ///Subclass should override this method to implement async task
     open override func main() {
-        //Subclass should override this method to implement async task
+        
+        testBlock()
     }
     
     public func state() -> State {
@@ -75,7 +91,7 @@ open class LKAsyncOperation: Operation {
     }
     
     public func setState(_ value: State) {
-        queue.async(flags: .barrier) { [weak self] in
+        queue.sync(flags: .barrier) { [weak self] in
             self?._state = value
         }
     }
