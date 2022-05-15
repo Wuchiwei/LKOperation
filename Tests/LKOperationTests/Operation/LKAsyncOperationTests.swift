@@ -6,7 +6,7 @@
 //
 
 import XCTest
-@testable import LKOpearion
+@testable import LKOperation
 
 class LKAsyncOperationTests: XCTestCase {
     

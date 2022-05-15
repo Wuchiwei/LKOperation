@@ -1,8 +1,17 @@
-os:
-  - osx
-language: swift
-osx_image: xcode13.3
-install: swift package update
-script:
-  - swift build
-  - swift test
+  os:
+    - osx
+  language: swift
+  osx_image: xcode13.3
+  env:
+    global:
+      FRAMEWORK_NAME=LKOperation
+      CODECOV_TOKEN=${secrets.CODECOV_TOKEN}
+  install: swift package update
+  script:
+    - swift build
+    - swift test --enable-code-coverage
+  after_success:
+    - xcrun llvm-cov export -format="lcov" .build/debug/LKOperationPackageTests.xctest/Contents/MacOS/LKOperationPackageTests -instr-profile .build/debug/codecov/default.profdata > info.lcov
+    - bash <(curl -s https://codecov.io/bash) -t ${CODECOV_TOKEN}
+
+  
