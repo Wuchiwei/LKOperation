@@ -1,4 +1,5 @@
 # LKOperation
+[![Build Status](https://app.travis-ci.com/Wuchiwei/LKOperation.svg?branch=main)](https://app.travis-ci.com/Wuchiwei/LKOperation)[![codecov](https://codecov.io/gh/Wuchiwei/LKOperation/branch/main/graph/badge.svg?token=JHUOPIH2XS)](https://codecov.io/gh/Wuchiwei/LKOperation)
 
 LKOperation is a concurrent task solution written in Swift. 
 
