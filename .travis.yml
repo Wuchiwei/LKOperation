@@ -11,7 +11,7 @@
     - swift build
     - swift test --enable-code-coverage
   after_success:
-    - xcrun llvm-cov export -format="lcov" .build/debug/LKOperationPackageTests.xctest/Contents/MacOS/LKOperationPackageTests -instr-profile .build/debug/codecov/default.profdata > info.lcov
+    - xcrun llvm-cov export -format="lcov" .build/debug/${FRAMEWORK_NAME}PackageTests.xctest/Contents/MacOS/${FRAMEWORK_NAME}PackageTests -instr-profile .build/debug/codecov/default.profdata > info.lcov
     - bash <(curl -s https://codecov.io/bash) -t ${CODECOV_TOKEN}
 
   
