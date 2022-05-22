@@ -11,51 +11,59 @@ public enum LKCombineOperationError: Error {
     case unknowed
 }
 
-public class LKCombineOperation<A, B>: LKAsyncSequenceOperation<(A, B)> {
+public class LKCombineOperation<A, B>: LKAsyncOperation {
     
     private let a: LKAsyncSequenceOperation<A>
     
     private let b: LKAsyncSequenceOperation<B>
     
-    public init(_ a: LKAsyncSequenceOperation<A>, _ b: LKAsyncSequenceOperation<B>) {
+    private let finishedBlock: (Result<(A, B), Error>?) -> Void
+    
+    public init(
+        _ a: LKAsyncSequenceOperation<A>,
+        _ b: LKAsyncSequenceOperation<B>,
+        finishedBlock: @escaping (Result<(A, B), Error>?) -> Void
+    ) {
         self.a = a
         self.b = b
-        super.init()
-        
-        a.finished { [weak self] _ in
-            self?.b.cancel()
-        }
-        
-        b.finished { [weak self] _ in
-            self?.a.cancel()
-        }
+        self.finishedBlock = finishedBlock
+        super.init(test: {})
         
         addDependency(a)
         addDependency(b)
     }
     
     public override func main() {
-        guard !a.isCancelled || !b.isCancelled else {
-            finishedBlock(true)
+
+        guard !a.isCancelled && !b.isCancelled && !isCancelled else {
+            cancel()
+            setState(.finished)
+            finishedBlock(nil)
             return
         }
-        
+
         switch (a.result, b.result) {
         case (.success(let aObject), .success(let bObject)):
-            successBlock((aObject, bObject))
+            finishedBlock(.success((aObject, bObject)))
         case (.failure(let error), _):
-            failureBlock(error)
+            finishedBlock(.failure(error))
         case (_, .failure(let error)):
-            failureBlock(error)
-        default: failureBlock(LKCombineOperationError.unknowed)
+            finishedBlock(.failure(error))
+        default: finishedBlock(.failure(LKCombineOperationError.unknowed))
         }
-        
-        finishedBlock(false)
+
+        setState(.finished)
     }
-    
-    public override func addTo(queue: LKAsyncSequenceOperationQueue) {
-        a.addTo(queue: queue)
-        b.addTo(queue: queue)
-        super.addTo(queue: queue)
+
+    public func addTo(queue: OperationQueue) {
+        queue.addOperation(self)
+        queue.addOperation(a)
+        queue.addOperation(b)
+    }
+
+    public override func prepareToExecute() {
+        super.prepareToExecute()
+        a.prepareToExecute()
+        b.prepareToExecute()
     }
 }
