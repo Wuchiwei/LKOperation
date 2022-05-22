@@ -36,7 +36,7 @@ open class LKAsyncSequenceOperation<T>: LKAsyncOperation {
     ///3. In your implementation of async task, you should call finished block when your task was finished or quited from the process.
     public private(set) lazy var finishedBlock: (Bool) -> Void = { [weak self] _ in
         guard let self = self else { return }
-        self.setState(.finished)
+        self.writeIntoState(.finished)
     }
     
     internal var result: Result<T, Error>?
@@ -55,7 +55,7 @@ open class LKAsyncSequenceOperation<T>: LKAsyncOperation {
             return
         }
         
-        setState(.executing)
+        writeIntoState(.executing)
         main()
     }
     
@@ -117,7 +117,7 @@ open class LKAsyncSequenceOperation<T>: LKAsyncOperation {
     public func finished(_ block: @escaping (Bool) -> Void) -> Self {
         self.finishedBlock = { [weak self] isCancelled in
             guard let self = self else { return }
-            self.setState(.finished)
+            self.writeIntoState(.finished)
             block(isCancelled)
         }
         return self

@@ -255,7 +255,7 @@ class LKAsyncSequenceOperationTests: LKAsyncOperationTests {
         //Then
         sleep(3)
         XCTAssertFalse(experimentalResult)
-        XCTAssertEqual(sut.state(), LKAsyncOperation.State.finished)
+        XCTAssertEqual(sut.fetchFromState(), LKAsyncOperation.State.finished)
     }
     
     func test_cancelOperationAndRunStart_stateShouldChangeToFinished() {
@@ -270,7 +270,7 @@ class LKAsyncSequenceOperationTests: LKAsyncOperationTests {
         sut.start()
         
         //Then
-        XCTAssertEqual(sut.state(), LKAsyncOperation.State.finished)
+        XCTAssertEqual(sut.fetchFromState(), LKAsyncOperation.State.finished)
     }
     
     // MARK: - addto(queue:)

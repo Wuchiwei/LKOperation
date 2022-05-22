@@ -18,7 +18,7 @@ class LKAsyncOperationTests: XCTestCase {
         //Give
         let sut = makeSut()
         //When
-        let experimentalResult = sut.state()
+        let experimentalResult = sut.fetchFromState()
         let expectResult = LKAsyncOperation.State.pending
         //Then
         XCTAssertEqual(
@@ -52,7 +52,7 @@ class LKAsyncOperationTests: XCTestCase {
         //Give
         let sut = makeSut()
         //When
-        sut.setState(.ready)
+        sut.writeIntoState(.ready)
         let experimentalResult = OperationPropertyCollector.object(with: sut)
         let expectResult = OperationPropertyCollector(
             isReady: true,
@@ -73,7 +73,7 @@ class LKAsyncOperationTests: XCTestCase {
         //Give
         let sut = makeSut()
         //When
-        sut.setState(.executing)
+        sut.writeIntoState(.executing)
         let experimentalResult = OperationPropertyCollector.object(with: sut)
         let expectResult = OperationPropertyCollector(
             isReady: false,
@@ -94,7 +94,7 @@ class LKAsyncOperationTests: XCTestCase {
         //Give
         let sut = makeSut()
         //When
-        sut.setState(.finished)
+        sut.writeIntoState(.finished)
         let experimentalResult = OperationPropertyCollector.object(with: sut)
         let expectResult = OperationPropertyCollector(
             isReady: false,
@@ -116,7 +116,7 @@ class LKAsyncOperationTests: XCTestCase {
         let sut = makeSut()
         //When
         sut.prepareToExecute()
-        let experimentalResult = sut.state()
+        let experimentalResult = sut.fetchFromState()
         let expectResult = LKAsyncOperation.State.ready
         //Then
         XCTAssertEqual(
@@ -151,11 +151,11 @@ class LKAsyncOperationTests: XCTestCase {
         //Give
         let sut = makeSut()
         let input = LKAsyncOperation.State.finished
-        let initialResult = sut.state()
+        let initialResult = sut.fetchFromState()
         
         //When
-        sut.setState(input)
-        let experimentalResult = sut.state()
+        sut.writeIntoState(input)
+        let experimentalResult = sut.fetchFromState()
         let expectResult = input
         
         //Then
@@ -196,7 +196,7 @@ class LKAsyncOperationTests: XCTestCase {
         sut.start()
         
         let expectResult = LKAsyncOperation.State.finished
-        let experimentalResult = sut.state()
+        let experimentalResult = sut.fetchFromState()
         
         //Then
         XCTAssertEqual(

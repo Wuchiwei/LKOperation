@@ -79,10 +79,10 @@ open class LKAsyncOperation: Operation {
 /// In the start() method we check the isCancelled property. If the operation is cancelled, we change the state to .finished, otherwise we change the state to .executing and invoke main() method.
     public override func start() {
         guard !isCancelled else {
-            setState(.finished)
+            writeIntoState(.finished)
             return
         }
-        setState(.executing)
+        writeIntoState(.executing)
         main()
     }
     
@@ -93,13 +93,13 @@ open class LKAsyncOperation: Operation {
         testBlock()
     }
     
-    public func state() -> State {
+    public func fetchFromState() -> State {
         queue.sync {
             _state
         }
     }
     
-    public func setState(_ value: State) {
+    public func writeIntoState(_ value: State) {
         queue.sync(flags: .barrier) { [weak self] in
             self?._state = value
         }
@@ -108,7 +108,7 @@ open class LKAsyncOperation: Operation {
     ///prepareToExecute() method will change state from initial value .pending to .ready. The operation queue know this operation is ready when we change the state to ready and it will put the operation into avaliable therad for executing
     
     public func prepareToExecute() {
-        setState(.ready)
+        writeIntoState(.ready)
     }
     
     ///Sytax sugur. Add the operation as dependency and reture self for futhur work

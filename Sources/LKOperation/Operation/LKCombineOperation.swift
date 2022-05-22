@@ -37,7 +37,7 @@ public class LKCombineOperation<A, B>: LKAsyncOperation {
 
         guard !a.isCancelled && !b.isCancelled && !isCancelled else {
             cancel()
-            setState(.finished)
+            writeIntoState(.finished)
             finishedBlock(nil)
             return
         }
@@ -52,7 +52,7 @@ public class LKCombineOperation<A, B>: LKAsyncOperation {
         default: finishedBlock(.failure(LKCombineOperationError.unknowed))
         }
 
-        setState(.finished)
+        writeIntoState(.finished)
     }
 
     public func addTo(queue: OperationQueue) {
