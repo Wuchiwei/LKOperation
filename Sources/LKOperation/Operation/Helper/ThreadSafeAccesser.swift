@@ -9,7 +9,7 @@ import Foundation
 
 class ThreadSafeAccesser<T> {
     
-    private lazy var queue = DispatchQueue(label: "\(type(of: self))", attributes: .concurrent)
+    private let queue = DispatchQueue(label: "ThreadSafeAccesser\(Int.random(in: 0...10000))", attributes: .concurrent)
 
     var _value: T
     
@@ -17,13 +17,13 @@ class ThreadSafeAccesser<T> {
         self._value = value
     }
     
-    func value() -> T {
+    func fetchFromValue() -> T {
         queue.sync {
             _value
         }
     }
     
-    func setValue(_ value: T) {
+    func writeIntoValue(_ value: T) {
         queue.sync(flags: .barrier) {
             _value = value
         }
