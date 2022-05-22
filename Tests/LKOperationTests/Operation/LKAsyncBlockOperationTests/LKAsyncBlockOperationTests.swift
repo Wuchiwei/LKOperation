@@ -9,7 +9,7 @@ import Foundation
 import XCTest
 @testable import LKOperation
 
-class LKAsyncBlockOperationTest: LKAsyncOperationTests {
+class LKAsyncBlockOperationTests: LKAsyncOperationTests {
     
     var queue: OperationQueue!
     
