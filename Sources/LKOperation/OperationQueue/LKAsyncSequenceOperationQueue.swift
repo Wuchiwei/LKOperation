@@ -8,9 +8,13 @@
 
 import Foundation
 
+/// LKAsyncSequenceOperationQueue collect the operation executing result.
+///  - If all executed successfully, .success event will pass to the completion block with object in a dictionary, key is relative operation identifier
+///  - If any operation fails, queue will cancel the remain operations and send .failure event to completion block with error the operation produced.
+///
 public class LKAsyncSequenceOperationQueue: OperationQueue {
     
-    public typealias AsyncCompletionBlock = (Result<Void, Error>) -> Void
+    public typealias AsyncCompletionBlock = (Result<[AnyHashable: Any], Error>) -> Void
     
     private let semaphore = DispatchSemaphore(value: 1)
     
@@ -20,27 +24,36 @@ public class LKAsyncSequenceOperationQueue: OperationQueue {
     
     private var error: Error?
     
-    private func completeBlock(for operation: LKAsyncSequenceOperation) -> (() -> Void) {
+    private var _successResult: [AnyHashable: Any] = [:]
+    
+    private let resultQueue = DispatchQueue(label: "LKAsyncSequenceOperationQueue", attributes: .concurrent)
+    
+    private(set) var ops: [LKAsyncOperation] = []
+    
+    private func finishedBlock<T>(for operation: LKAsyncSequenceOperation<T>) -> ((Bool) -> Void) {
         
-        return { [weak self] in
-            operation.setState(.finished)
+        return { [weak self] _ in
             self?.group.leave()
         }
     }
     
-    private func failureBlock(in operation: LKAsyncSequenceOperation) -> ((Error) -> Void)  {
+    private func failureBlock<T>(in operation: LKAsyncSequenceOperation<T>) -> ((Error) -> Void)  {
         
-        return { [weak self] error in
+        return { [weak self, weak operation] error in
             
             defer {
                 self?.semaphore.signal()
             }
             
-            guard let self = self else { return }
+            guard let self = self,
+                  let isCancelled = operation?.isCancelled
+            else {
+                return
+            }
             
             self.semaphore.wait()
             
-            guard !operation.isCancelled else {
+            guard !isCancelled else {
                 return
             }
             
@@ -49,47 +62,84 @@ public class LKAsyncSequenceOperationQueue: OperationQueue {
         }
     }
     
-    private func addAsyncOperation(_ operation: LKAsyncSequenceOperation) {
-        let completionOperation = operation
-            .complete(self.completeBlock(for: operation))
-            .failure(self.failureBlock(in: operation))
-        
-        super.addOperation(completionOperation)
+    private func successBlock<T>(in operation: LKAsyncSequenceOperation<T>) -> ((T) -> Void)  {
+        return { [weak self, weak operation] (object: T) in
+            
+            guard let self = self,
+                  let identifier = operation?.identifier,
+                  operation?.isCancelled == false
+            else {
+                return
+            }
+            
+            self.writeIntoSuccessResult(with: identifier, and: object)
+        }
     }
     
-    @discardableResult
-    public func addAsyncOperationsWithExecuteConcurrently(_ operations: [LKAsyncSequenceOperation]) -> Self {
-        for operation in operations {
+    private func fetchFromSuccessResult() -> [AnyHashable: Any] {
+        resultQueue.sync {
+            _successResult
+        }
+    }
+    
+    private func writeIntoSuccessResult(with key: AnyHashable, and value: Any) {
+        resultQueue.sync(flags: .barrier) {
+            _successResult[key] = value
+        }
+    }
+    
+    private func setSuccessResultToEmpty() {
+        resultQueue.sync(flags: .barrier) {
+            _successResult = [:]
+        }
+    }
+    
+    public func addAsyncOperation<T>(_ operation: LKAsyncSequenceOperation<T>) {
+        let op = operation
+            .finished(self.finishedBlock(for: operation))
+            .failure(self.failureBlock(in: operation))
+            .success(self.successBlock(in: operation))
+        
+        ops.append(op)
+    }
+    
+    public func runOperationsConcurrently() {
+        for op in ops {
             group.enter()
-            addAsyncOperation(operation)
+            op.prepareToExecute()
+            super.addOperation(op)
         }
         
+        ops.removeAll()
+
         group.notify(queue: .main) { [weak self] in
             guard let self = self else { return }
             if let error = self.error {
                 self.completionBlock(.failure(error))
             } else {
-                self.completionBlock(.success(()))
+                self.completionBlock(.success((self.fetchFromSuccessResult())))
             }
+            self.setSuccessResultToEmpty()
         }
-        
-        return self
     }
     
-    @discardableResult
-    public func addAsyncOperationsWithExecuteSerially(_ operations: [LKAsyncSequenceOperation]) -> Self {
-        for i in 1..<operations.count {
-            let previousOperation = operations[i-1]
-            let nextOperation = operations[i]
+    public func runOperationsSerially() {
+        for i in 1 ..< ops.count {
+            let previousOperation = ops[i-1]
+            let nextOperation = ops[i]
             nextOperation.addDependency(previousOperation)
         }
-        
-        return addAsyncOperationsWithExecuteConcurrently(operations)
+
+        runOperationsConcurrently()
     }
     
     @discardableResult
     public func completion(_ block: @escaping AsyncCompletionBlock) -> Self {
         self.completionBlock = block
         return self
+    }
+    
+    deinit {
+        print("==== \(type(of: self)) operation queue deinit ====.")
     }
 }

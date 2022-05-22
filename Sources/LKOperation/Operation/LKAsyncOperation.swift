@@ -1,44 +1,37 @@
 //
-//  AsyncOperation.swift
+//  LKAsyncOperation.swift
 //
 //  Created by WU CHIH WEI on 2022/5/11.
 //
 
 import Foundation
 
-///Abstract Class. Conform this class to get async operation state management ability.
+/// LKAsyncOperation has the following responsibilities
 ///
-///Manipulate the `state` preperty to manage the KVO relative property inherints from Operation class.
-///When you change the `state` property will trigger the KVO notification to notify properties observers.
-///- warning: Do not use this class directly. There is AsyncBlockOperation class you can use for implemete async operation block
+/// 1. Use private property state to manage properties with prefix keyword 'is'(ex: isReady, isExecuting, etc.). We can use state(_:) and state() method to change and retrive state of operation.
 ///
-///Even we do barrier scenario for achieving thread safe, but AsyncOperation is still not thread safe. We can't block any property associated with state property when we are changing state property (ex: isReady computer property). Please use AsyncOperation carefully with multithread accessing.
+///  - The idea of design is due to these properties inhirint from NSOperation, and these are read-only properties. Operation Queue execute operation depend on these properties with KVO mechanism.
+///  - Every time we change state, the operation will trigger KVO's willChangeValue and didChangeValue method to trigger KVO. This make our LKAsyncOperation work ferfectly with operation queue.
+///
+/// 2.prepareToExecute() method will change state from initial value .pending to .ready. The operation queue know this operation is ready when we change the state to ready and it will put the operation into avaliable therad for executing
+///
+/// 3. In the start() method we check the isCancelled property. If the operation is cancelled, we change the state to .finished, otherwise we change the state to .executing and invoke main() method.
+///
+///4. In main method, we invoke testBlock closure for testing purpose. Subclass should override main method for putting their task here.
+///
+///
+///- warning: Do not use this class directly. There is AsyncBlockOperation class you can use for implemete async operation block. Or subclass and put your implemetation inside main() method.
 
 open class LKAsyncOperation: Operation {
     
     public enum State: String {
         
-        case ready, executing, finished
+        case ready, executing, finished, pending
         
         fileprivate var keyPath: String { "is\(rawValue.capitalized)" }
     }
     
-    private let queue = DispatchQueue(
-        label: UUID().uuidString,
-        attributes: .concurrent
-    )
-    
-    private var _state: State = .ready {
-        willSet {
-            willChangeValue(forKey: _state.keyPath)
-            willChangeValue(forKey: newValue.keyPath)
-        }
-
-        didSet {
-            didChangeValue(forKey: oldValue.keyPath)
-            didChangeValue(forKey: _state.keyPath)
-        }
-    }
+    public let identifier: UUID = UUID()
     
     public override var isReady: Bool { super.isReady && _state == .ready }
     
@@ -48,14 +41,28 @@ open class LKAsyncOperation: Operation {
     
     public override var isFinished: Bool { _state == .finished }
     
-    ///completeBlock closure will be called when operation is cancelled before main() method has executed.
-    ///
-    ///If you need do something when operation is cancelled, you can add it in completeBlock through complete(:_) method.
-    ///
-    ///In your implementation of async task, you should call completeBlock when your task is finished or is quit from the process.
-    public private(set) lazy var completeBlock: () -> Void = { [weak self] in
-        guard let self = self else { return }
-        self.setState(.finished)
+    public var isPending: Bool { _state == .pending }
+    
+    private let queue = DispatchQueue(
+        label: UUID().uuidString,
+        attributes: .concurrent
+    )
+    
+/// Use private property state to manage properties with prefix keyword 'is'(ex: isReady, isExecuting, etc.). We can use state(_:) and state() method to change and retrive state of operation.
+///
+///  - The idea of design is due to these properties inhirint from NSOperation, and these are read-only properties. Operation Queue execute operation depend on these properties with KVO mechanism.
+///  - Every time we change state, the operation will trigger KVO's willChangeValue and didChangeValue method to trigger KVO. This make our LKAsyncOperation work ferfectly with operation queue.
+    
+    private var _state: State = .pending {
+        willSet {
+            willChangeValue(forKey: _state.keyPath)
+            willChangeValue(forKey: newValue.keyPath)
+        }
+
+        didSet {
+            didChangeValue(forKey: oldValue.keyPath)
+            didChangeValue(forKey: _state.keyPath)
+        }
     }
     
     private var testBlock: () -> Void = {}
@@ -69,39 +76,50 @@ open class LKAsyncOperation: Operation {
         super.init()
     }
     
+/// In the start() method we check the isCancelled property. If the operation is cancelled, we change the state to .finished, otherwise we change the state to .executing and invoke main() method.
     public override func start() {
         guard !isCancelled else {
-            completeBlock()
+            writeIntoState(.finished)
             return
         }
-        setState(.executing)
+        writeIntoState(.executing)
         main()
     }
     
-    ///Subclass should override this method to implement async task
+    ///In main method, we invoke testBlock closure for testing purpose.
+    ///Subclass should override this method to implement async task inside the method.
     open override func main() {
         
         testBlock()
     }
     
-    public func state() -> State {
+    public func fetchFromState() -> State {
         queue.sync {
             _state
         }
     }
     
-    public func setState(_ value: State) {
+    public func writeIntoState(_ value: State) {
         queue.sync(flags: .barrier) { [weak self] in
             self?._state = value
         }
     }
     
-    public func complete(_ block: @escaping () -> Void) -> Self {
-        self.completeBlock = { [weak self] in
-            guard let self = self else { return }
-            block()
-            self.setState(.finished)
-        }
+    ///prepareToExecute() method will change state from initial value .pending to .ready. The operation queue know this operation is ready when we change the state to ready and it will put the operation into avaliable therad for executing
+    
+    public func prepareToExecute() {
+        writeIntoState(.ready)
+    }
+    
+    ///Sytax sugur. Add the operation as dependency and reture self for futhur work
+    
+    @discardableResult
+    public func lk_addDependency(_ op: Operation) -> Self {
+        super.addDependency(op)
         return self
+    }
+    
+    deinit {
+        print("==== \(type(of: self)) operation deinit ====.")
     }
 }

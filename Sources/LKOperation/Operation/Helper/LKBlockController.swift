@@ -7,13 +7,15 @@
 
 import Foundation
 
-public struct LKBlockController {
+/// Collecting relative action with operation for manipulating esaily.
+
+public struct LKBlockController<T> {
     
-    public let success: () -> Void
+    public let success: (T) -> Void
     
     public let failure: (Error) -> Void
     
-    public let complete: () -> Void
+    public let finished: (Bool) -> Void
     
     public let isCancelled: () -> Bool
 }

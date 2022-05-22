@@ -1,34 +1,41 @@
 //
-//  AsyncBlockOperation.swift
+//  LKAsyncBlockOperation.swift
 //
 //  Created by WU CHIH WEI on 2022/5/11.
 //
 
 import Foundation
 
-/// AsyncOperation with will define callback to achieve async operation with state management.
+/// LKAsyncBlockOperation with will define callback to achieve async operation with state management.
 ///
-/// You can add mutiple type of call back to be invoked in the Operation
-///  - block closure for saving the async task
-///  - failureBlock closure should be invoked when async task rising an error
-///  - successBlock closure should be invoked when aync task complete it's job successfully
-///  - deferBlock should be called inside the defer block of async task
-///
+/// - warning: Inside the block, you should set operation state to finished in proper timing. Otherwise the operation never turn to finished state and cause the operation queue and this operation remain alive in memory. Which is also called memory leak.
 
 public class LKAsyncBlockOperation: LKAsyncOperation {
     
     private var block: (LKAsyncBlockOperation) -> Void = { _ in }
     
-    public init(_ block: @escaping (LKAsyncBlockOperation) -> Void = { _ in }) {
+    public init(
+        _ block: @escaping (LKAsyncBlockOperation) -> Void = { _ in },
+        testBlock: @escaping () -> Void = {}
+    ) {
         self.block = block
-        super.init(test: {})
+        super.init(test: testBlock)
     }
     
     public override func main() {
+        super.main()
         block(self)
     }
     
+    /// Save the block and execute it in main() method.
+    ///
+    /// 1. Operation will invoke this block in main() method if the operation is not be cancelled.
+    /// 2. Inside the block, you can check the operation's isCancelled property to determine the proccess should keep going or terminate.
+    /// 2. Inside the block, you should set operation state to finished in proper timing. Otherwise the operation never turn to finished state and cause the operation queue and this operation remain alive in memory. Which is also called memory leak.
+    
+    @discardableResult
     public func block(_ block: @escaping (LKAsyncBlockOperation) -> Void) -> Self {
+    
         self.block = block
         return self
     }

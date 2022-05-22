@@ -14,30 +14,52 @@ class LKAsyncOperationTests: XCTestCase {
         return LKAsyncOperation(test: testBlock)
     }
     
-    func test_value_initialValueOfState_shouldBeReady() {
+    func test_initialValueOfState_shouldBePending() {
         //Give
         let sut = makeSut()
         //When
-        let experimentalResult = sut.state()
-        let expectResult = LKAsyncOperation.State.ready
+        let experimentalResult = sut.fetchFromState()
+        let expectResult = LKAsyncOperation.State.pending
         //Then
         XCTAssertEqual(
             experimentalResult,
             expectResult,
-            "The initial value of state property in an LKAsyncOperation should be ready"
+            "The initial value of state property in an LKAsyncOperation should be pending"
         )
     }
     
-    func test_value_initialValueOfProperties() {
+    func test_valueOfComputerProperties_initialValueOfProperties() {
         //Give
         let sut = makeSut()
         //When
+        let experimentalResult = OperationPropertyCollector.object(with: sut)
+        let expectResult = OperationPropertyCollector(
+            isReady: false,
+            isExecuted: false,
+            isFinished: false,
+            isAsynchronous: true,
+            isPending: true
+        )
+        //Then
+        XCTAssertEqual(
+            experimentalResult,
+            expectResult,
+            "The value of computer properties in an LKAsyncOperation should equal to expected result"
+        )
+    }
+    
+    func test_valueOfComputerProperties_stateChangeToReady() {
+        //Give
+        let sut = makeSut()
+        //When
+        sut.writeIntoState(.ready)
         let experimentalResult = OperationPropertyCollector.object(with: sut)
         let expectResult = OperationPropertyCollector(
             isReady: true,
             isExecuted: false,
             isFinished: false,
-            isAsynchronous: true
+            isAsynchronous: true,
+            isPending: false
         )
         //Then
         XCTAssertEqual(
@@ -47,18 +69,18 @@ class LKAsyncOperationTests: XCTestCase {
         )
     }
     
-    func test_value_changeStateToExecuting_propertyValueShouldMappingToNewState() {
+    func test_valueOfComputerProperties_stateChangeToExecuting() {
         //Give
         let sut = makeSut()
-        let input = LKAsyncOperation.State.executing
         //When
-        sut.setState(input)
+        sut.writeIntoState(.executing)
         let experimentalResult = OperationPropertyCollector.object(with: sut)
         let expectResult = OperationPropertyCollector(
             isReady: false,
             isExecuted: true,
             isFinished: false,
-            isAsynchronous: true
+            isAsynchronous: true,
+            isPending: false
         )
         //Then
         XCTAssertEqual(
@@ -68,18 +90,54 @@ class LKAsyncOperationTests: XCTestCase {
         )
     }
     
-    func test_value_changeStateToFinished_propertyValueShouldMappingToNewState() {
+    func test_valueOfComputerProperties_stateChangeToFinished() {
         //Give
         let sut = makeSut()
-        let input = LKAsyncOperation.State.finished
         //When
-        sut.setState(input)
+        sut.writeIntoState(.finished)
         let experimentalResult = OperationPropertyCollector.object(with: sut)
         let expectResult = OperationPropertyCollector(
             isReady: false,
             isExecuted: false,
             isFinished: true,
-            isAsynchronous: true
+            isAsynchronous: true,
+            isPending: false
+        )
+        //Then
+        XCTAssertEqual(
+            experimentalResult,
+            expectResult,
+            "The value of computer properties in an LKAsyncOperation should equal to expected result"
+        )
+    }
+
+    func test_state_prepareToExecute_stateShouldBeReady() {
+        //Give
+        let sut = makeSut()
+        //When
+        sut.prepareToExecute()
+        let experimentalResult = sut.fetchFromState()
+        let expectResult = LKAsyncOperation.State.ready
+        //Then
+        XCTAssertEqual(
+            experimentalResult,
+            expectResult,
+            "The value of state in an LKAsyncOperation should equal to expected result"
+        )
+    }
+    
+    func test_valueOfComputerProperties_prepareToExecute() {
+        //Give
+        let sut = makeSut()
+        //When
+        sut.prepareToExecute()
+        let experimentalResult = OperationPropertyCollector.object(with: sut)
+        let expectResult = OperationPropertyCollector(
+            isReady: true,
+            isExecuted: false,
+            isFinished: false,
+            isAsynchronous: true,
+            isPending: false
         )
         //Then
         XCTAssertEqual(
@@ -93,11 +151,11 @@ class LKAsyncOperationTests: XCTestCase {
         //Give
         let sut = makeSut()
         let input = LKAsyncOperation.State.finished
-        let initialResult = sut.state()
+        let initialResult = sut.fetchFromState()
         
         //When
-        sut.setState(input)
-        let experimentalResult = sut.state()
+        sut.writeIntoState(input)
+        let experimentalResult = sut.fetchFromState()
         let expectResult = input
         
         //Then
@@ -138,7 +196,7 @@ class LKAsyncOperationTests: XCTestCase {
         sut.start()
         
         let expectResult = LKAsyncOperation.State.finished
-        let experimentalResult = sut.state()
+        let experimentalResult = sut.fetchFromState()
         
         //Then
         XCTAssertEqual(
@@ -190,47 +248,54 @@ class LKAsyncOperationTests: XCTestCase {
         )
     }
     
-    func test_execution_sendCancelMessageToOperationAndRunStart_completionBlockShouldBeInvoke() {
+    func test_execution_addOperationToQeueuWithoutPrepareToEcecute_operationShouldNotBeInvoke() {
         //Give
-        let expectation = expectation(description: "Complete block invoked")
-        let sut = makeSut().complete {
-            expectation.fulfill()
-        }
+        var isInvoked: Bool = false
+        let sut = makeSut(testBlock: {
+            isInvoked = true
+        })
+        let queue = OperationQueue()
         
         //When
-        sut.cancel()
-        sut.start()
+        queue.addOperation(sut)
         
         //Then
-        wait(for: [expectation], timeout: 3)
+        sleep(3)
+        XCTAssertFalse(isInvoked)
     }
     
-    func test_execution_changeState_KVONotificationShouldSendMessageToObserver() {
+    func test_execution_addOperationToQeueuWithPrepareToEcecute_KVONotificationShouldSendMessageToObserver() {
         //Give
         let sut = makeSut()
+        sut.prepareToExecute()
         let queue = OperationQueue()
         let readyObserverExpectation = expectation(description: "Ready property kvo invoke")
         let executingObserverExpectation = expectation(description: "Executing property kvo invoke")
         
         //When
+        var isReady: Bool? = true
         let readyObservation = sut.observe(
             \.isReady,
              options: [.new],
              changeHandler: { operation, changes in
                  readyObserverExpectation.fulfill()
+                 isReady = changes.newValue
              }
         )
         
+        var isExecuting: Bool? = false
         let executingObservation = sut.observe(
             \.isExecuting,
              options: [.new],
              changeHandler: { operation, changes in
                  executingObserverExpectation.fulfill()
+                 isExecuting = changes.newValue
              }
         )
         
-        //Then
         queue.addOperation(sut)
+        
+        //Then
         wait(
             for: [
                 readyObserverExpectation,
@@ -239,7 +304,83 @@ class LKAsyncOperationTests: XCTestCase {
             timeout: 3
         )
         
+        XCTAssertNotNil(isReady)
+        XCTAssertNotNil(isExecuting)
+        
+        XCTAssertFalse(isReady!)
+        XCTAssertTrue(isExecuting!)
+        
         readyObservation.invalidate()
         executingObservation.invalidate()
+    }
+    
+    func test_execution_prepareToExecute_KVONotificationShouldSendMessageToObserver() {
+        //Give
+        let sut = makeSut()
+        let readyObserverExpectation = expectation(description: "Ready property kvo invoke")
+        
+        //When
+        
+        var experimentalResult: Bool?
+        let readyObservation = sut.observe(
+            \.isReady,
+             options: [.new],
+             changeHandler: { operation, changes in
+                 experimentalResult = changes.newValue
+                 readyObserverExpectation.fulfill()
+             }
+        )
+        
+        sut.prepareToExecute()
+        //Then
+        wait(
+            for: [
+                readyObserverExpectation,
+            ],
+            timeout: 3
+        )
+        
+        XCTAssertNotNil(experimentalResult)
+        XCTAssertTrue(experimentalResult!)
+        readyObservation.invalidate()
+    }
+    
+    func test_value_identifierShouldNotBeEqualBetweenTwoOperation() {
+        //Give
+        let sut1 = makeSut()
+        let sut2 = makeSut()
+        //When
+        
+        //Then
+        XCTAssertNotEqual(sut1.identifier, sut2.identifier)
+    }
+    
+    func test_execute_lk_addDependency_shouldReturnTheSameOperation() {
+        
+        //Give
+        let sut = makeSut()
+        let op = Operation()
+        
+        //When
+        let experimentalResult = sut.lk_addDependency(op)
+        let expectResult = sut
+        
+        //Then
+        XCTAssertEqual(experimentalResult, expectResult)
+    }
+    
+    func test_execute_lk_addDependency_shouldAddDependency() {
+        
+        //Give
+        let sut = makeSut()
+        let op = Operation()
+        
+        //When
+        sut.lk_addDependency(op)
+        let experimentalResult = sut.dependencies
+        let expectResult = [op]
+        
+        //Then
+        XCTAssertEqual(experimentalResult, expectResult)
     }
 }
