@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  LKAsyncBlockOperationTests.swift
 //  
 //
 //  Created by WU CHIH WEI on 2022/5/15.
@@ -9,7 +9,7 @@ import Foundation
 import XCTest
 @testable import LKOperation
 
-class LKAsyncBlockOperationTest: XCTestCase {
+class LKAsyncBlockOperationTest: LKAsyncOperationTests {
     
     var queue: OperationQueue!
     
@@ -18,7 +18,16 @@ class LKAsyncBlockOperationTest: XCTestCase {
         queue = OperationQueue()
     }
     
-    func makeSut(
+    override func makeSut(
+        testBlock: @escaping () -> Void = {}
+    ) -> LKAsyncOperation {
+        return LKAsyncBlockOperation(
+            { _ in },
+            testBlock: testBlock
+        )
+    }
+    
+    func makeBlockOperationSut(
         block: @escaping ((LKAsyncBlockOperation) -> Void) = { _ in }
     ) -> LKAsyncBlockOperation {
         
@@ -32,7 +41,7 @@ class LKAsyncBlockOperationTest: XCTestCase {
         
         //Give
         let expectation = expectation(description: "Expect to be invoked")
-        let sut = makeSut(block: { op in
+        let sut = makeBlockOperationSut(block: { op in
             expectation.fulfill()
         })
         
@@ -49,7 +58,7 @@ class LKAsyncBlockOperationTest: XCTestCase {
         let expectation = expectation(description: "Expect to be invoked")
         var experimentalResult: LKAsyncBlockOperation?
         
-        let sut = makeSut(block: { op in
+        let sut = makeBlockOperationSut(block: { op in
             expectation.fulfill()
             experimentalResult = op
         })
@@ -70,7 +79,7 @@ class LKAsyncBlockOperationTest: XCTestCase {
         let expectation = expectation(description: "Expect to be invoked")
         var experimentalResult: LKAsyncBlockOperation?
         
-        let sut = makeSut()
+        let sut = makeBlockOperationSut()
         sut.block{ op in
             experimentalResult = op
             expectation.fulfill()
@@ -90,7 +99,7 @@ class LKAsyncBlockOperationTest: XCTestCase {
     func test_execute_blockMethodShouldReturnTheSameOperation() {
         //Give
         
-        let sut = makeSut()
+        let sut = makeBlockOperationSut()
         let experimentalResult = sut.block{ _ in }
         
         let expectResult = sut

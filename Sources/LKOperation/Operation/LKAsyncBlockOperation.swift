@@ -15,10 +15,11 @@ public class LKAsyncBlockOperation: LKAsyncOperation {
     private var block: (LKAsyncBlockOperation) -> Void = { _ in }
     
     public init(
-        _ block: @escaping (LKAsyncBlockOperation) -> Void = { _ in }
+        _ block: @escaping (LKAsyncBlockOperation) -> Void = { _ in },
+        testBlock: @escaping () -> Void = {}
     ) {
         self.block = block
-        super.init(test: {})
+        super.init(test: testBlock)
     }
     
     public override func main() {
