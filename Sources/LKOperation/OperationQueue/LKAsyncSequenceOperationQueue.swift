@@ -26,14 +26,13 @@ public class LKAsyncSequenceOperationQueue: OperationQueue {
     
     private var _successResult: [AnyHashable: Any] = [:]
     
-    private lazy var resultQueue = DispatchQueue(label: "\(type(of: self))", attributes: .concurrent)
+    private let resultQueue = DispatchQueue(label: "LKAsyncSequenceOperationQueue", attributes: .concurrent)
     
-    private var ops: [LKAsyncOperation] = []
+    private(set) var ops: [LKAsyncOperation] = []
     
     private func finishedBlock<T>(for operation: LKAsyncSequenceOperation<T>) -> ((Bool) -> Void) {
         
-        return { [weak self, weak operation] _ in
-            operation?.setState(.finished)
+        return { [weak self] _ in
             self?.group.leave()
         }
     }
@@ -73,17 +72,17 @@ public class LKAsyncSequenceOperationQueue: OperationQueue {
                 return
             }
             
-            self.setSuccessResult(key: identifier, value: object)
+            self.writeIntoSuccessResult(with: identifier, and: object)
         }
     }
     
-    private func successResult() -> [AnyHashable: Any] {
+    private func fetchFromSuccessResult() -> [AnyHashable: Any] {
         resultQueue.sync {
             _successResult
         }
     }
     
-    private func setSuccessResult(key: AnyHashable, value: Any) {
+    private func writeIntoSuccessResult(with key: AnyHashable, and value: Any) {
         resultQueue.sync(flags: .barrier) {
             _successResult[key] = value
         }
@@ -118,7 +117,7 @@ public class LKAsyncSequenceOperationQueue: OperationQueue {
             if let error = self.error {
                 self.completionBlock(.failure(error))
             } else {
-                self.completionBlock(.success((self.successResult())))
+                self.completionBlock(.success((self.fetchFromSuccessResult())))
             }
             self.setSuccessResultToEmpty()
         }
