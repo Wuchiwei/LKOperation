@@ -13,9 +13,21 @@ open class LKAsyncSequenceOperation<T>: LKAsyncOperation {
     
     public private(set) lazy var block: (LKBlockController<T>) -> Void = { _ in }
     
-    public private(set) lazy var failureBlock: (Error) -> Void = { _ in }
+    public private(set) lazy var failureBlock: (Error) -> Void = { [weak self] error in
+        
+        guard self?.isCancelled == false else {
+            return
+        }
+        self?.result = .failure(error)
+    }
     
-    public private(set) lazy var successBlock: (T) -> Void = { _ in }
+    public private(set) lazy var successBlock: (T) -> Void = { [weak self] value in
+        
+        guard self?.isCancelled == false else {
+            return
+        }
+        self?.result = .success(value)
+    }
     
     ///1. finishedBlock closure will be called when operation is cancelled before main() method has executed.
     ///
@@ -29,12 +41,16 @@ open class LKAsyncSequenceOperation<T>: LKAsyncOperation {
     
     internal var result: Result<T, Error>?
     
-    public init(_ block: @escaping (LKBlockController<T>) -> Void = { _ in }) {
-        super.init(test: {})
+    public init(
+        _ block: @escaping (LKBlockController<T>) -> Void = { _ in },
+        testBlock: @escaping () -> Void = {}
+    ){
+        super.init(test: testBlock)
         self.block = block
     }
     
     public override func main() {
+        super.main()
         
         let controller = LKBlockController<T>(
             success: successBlock,
