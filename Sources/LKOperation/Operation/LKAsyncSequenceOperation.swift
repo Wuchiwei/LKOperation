@@ -49,8 +49,23 @@ open class LKAsyncSequenceOperation<T>: LKAsyncOperation {
         self.block = block
     }
     
+    public override func start() {
+        guard !isCancelled else {
+            finishedBlock(isCancelled)
+            return
+        }
+        
+        setState(.executing)
+        main()
+    }
+    
     public override func main() {
         super.main()
+        
+        guard !isCancelled else {
+            finishedBlock(isCancelled)
+            return
+        }
         
         let controller = LKBlockController<T>(
             success: successBlock,
@@ -102,8 +117,8 @@ open class LKAsyncSequenceOperation<T>: LKAsyncOperation {
     public func finished(_ block: @escaping (Bool) -> Void) -> Self {
         self.finishedBlock = { [weak self] isCancelled in
             guard let self = self else { return }
-            block(isCancelled)
             self.setState(.finished)
+            block(isCancelled)
         }
         return self
     }
