@@ -32,6 +32,7 @@ public class LKAsyncBlockOperation: LKAsyncOperation {
     /// 2. Inside the block, you can check the operation's isCancelled property to determine the proccess should keep going or terminate.
     /// 2. Inside the block, you should set operation state to finished in proper timing. Otherwise the operation never turn to finished state and cause the operation queue and this operation remain alive in memory. Which is also called memory leak.
     
+    @discardableResult
     public func block(_ block: @escaping (LKAsyncBlockOperation) -> Void) -> Self {
     
         self.block = block
