@@ -24,8 +24,9 @@ class ThreadSafeAccesser<T> {
     }
     
     func writeIntoValue(_ value: T) {
-        queue.sync(flags: .barrier) {
-            _value = value
+        queue.async(flags: .barrier) { [weak self] in
+            guard let self = self else { return }
+            self._value = value
         }
     }
 }
